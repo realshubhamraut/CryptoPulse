@@ -39,7 +39,7 @@ def sentiment_analyst_node(state: AgentState) -> dict[str, Any]:
 
     Analyzes sentiment data and produces a sentiment assessment.
     """
-    from langchain_google_genai import ChatGoogleGenerativeAI
+    from langchain_groq import ChatGroq
 
     symbol = state.get("symbol", "UNKNOWN")
     sentiment_data = state.get("sentiment_data", {})
@@ -53,8 +53,8 @@ def sentiment_analyst_node(state: AgentState) -> dict[str, Any]:
     # Include price context for divergence detection
     price_change = market_data.get("price_change_pct", 0)
 
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
+    llm = ChatGroq(
+        model="llama-3.3-70b-versatile",
         temperature=0.1,
     )
 

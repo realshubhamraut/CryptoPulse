@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Live News{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h2>📰 Live Crypto News</h2>
+            <p>Real-time news crawled from multiple sources with AI sentiment analysis</p>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <span class="status-dot" id="sse-dot"></span>
+            <span style="font-size:12px; color: var(--text-muted);" id="sse-status">Connecting...</span>
+            <button class="btn btn-sm btn-ghost" onclick="loadNews()">
+                <i data-lucide="refresh-cw" style="width:14px;height:14px;"></i> Refresh
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="page-body">
+    <!-- Source Filter Tabs -->
+    <div class="tabs source-filters" id="source-tabs">
+        <button class="tab active" data-source="all" onclick="filterNews('all', this)">All Sources</button>
+        <button class="tab" data-source="coindesk" onclick="filterNews('coindesk', this)">CoinDesk</button>
+        <button class="tab" data-source="cointelegraph"
+            onclick="filterNews('cointelegraph', this)">CoinTelegraph</button>
+        <button class="tab" data-source="cryptocompare"
+            onclick="filterNews('cryptocompare', this)">CryptoCompare</button>
+    </div>
+
+    <div class="grid grid-2">
+        <!-- News Feed -->
+        <div class="card" style="grid-column: 1 / -1;">
+            <div class="card-header">
+                <h3><i data-lucide="rss" style="width:16px;height:16px;"></i> News Feed</h3>
+                <div style="display:flex; gap:16px; align-items:center;">
+                    <span class="badge badge-green" id="positive-count">0 Positive</span>
+                    <span class="badge badge-red" id="negative-count">0 Negative</span>
+                    <span class="badge badge-blue" id="neutral-count">0 Neutral</span>
+                </div>
+            </div>
+            <div id="news-feed">
+                <div class="loading-overlay">
+                    <div class="spinner"></div>
+                    <span>Crawling news sources...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sentiment Chart -->
+    <div class="card" style="margin-top: 24px;">
+        <div class="card-header">
+            <h3><i data-lucide="trending-up" style="width:16px;height:16px;"></i> Sentiment Distribution</h3>
+        </div>
+        <div class="card-body" style="max-width: 400px; margin: 0 auto;">
+            <canvas id="sentiment-chart" height="250"></canvas>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    loadNews();
+    connectNewsSSE();
+    setInterval(loadNews, 60000);
+</script>
+{% endblock %}

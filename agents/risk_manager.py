@@ -39,7 +39,7 @@ def risk_manager_node(state: AgentState) -> dict[str, Any]:
 
     Evaluates risk from market data and anomaly signals.
     """
-    from langchain_google_genai import ChatGoogleGenerativeAI
+    from langchain_groq import ChatGroq
 
     symbol = state.get("symbol", "UNKNOWN")
     market_data = state.get("market_data", {})
@@ -57,8 +57,8 @@ def risk_manager_node(state: AgentState) -> dict[str, Any]:
         "high_low_range": str(market_data.get("high_low_range", 0)),
     }, indent=2)
 
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
+    llm = ChatGroq(
+        model="llama-3.3-70b-versatile",
         temperature=0.1,
     )
 

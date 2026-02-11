@@ -67,17 +67,18 @@ echo "─── [3/4] Importing notebooks ───"
 
 # Create workspace directory
 databricks workspace mkdirs /CryptoPulse 2>/dev/null || true
+databricks workspace mkdirs /CryptoPulse/notebooks 2>/dev/null || true
 
-# Import each notebook
+# Import each notebook (.ipynb format)
 if [ -d "$PROJECT_ROOT/notebooks" ]; then
-    for NB in "$PROJECT_ROOT"/notebooks/*.py; do
-        NB_NAME=$(basename "$NB" .py)
-        databricks workspace import "$NB" "/CryptoPulse/${NB_NAME}" \
-            --language PYTHON --overwrite 2>/dev/null || true
+    for NB in "$PROJECT_ROOT"/notebooks/*.ipynb; do
+        NB_NAME=$(basename "$NB" .ipynb)
+        databricks workspace import "$NB" "/CryptoPulse/notebooks/${NB_NAME}" \
+            --language PYTHON --format JUPYTER --overwrite 2>/dev/null || true
         echo "  ✓ Imported: ${NB_NAME}"
     done
 else
-    echo "  ⚠ No notebooks directory found. Skipping."
+    echo "  No notebooks directory found. Skipping."
 fi
 
 # ─── 4. Create Cluster ───────────────────────────────────────────────────────

@@ -99,14 +99,26 @@ class AgentOrchestrator:
             logger.info("cache_hit", symbol=symbol)
             return cached
 
+        # ── Auto-fetch live data from Binance if not provided ─────────
+        if not market_data:
+            market_data = await self._fetch_live_market_data(symbol)
+
+        if not sentiment_data:
+            sentiment_data = {
+                "mean_score": 0.0,
+                "weighted_score": 0.0,
+                "article_count": 0,
+                "dominant_label": "neutral",
+            }
+
         # Prepare state
         from agents.state import AgentState
 
         initial_state: AgentState = {
             "messages": [],
             "symbol": symbol,
-            "market_data": market_data or {},
-            "sentiment_data": sentiment_data or {},
+            "market_data": market_data,
+            "sentiment_data": sentiment_data,
             "anomaly_data": anomaly_data or [],
             "prediction_data": {},
             "market_analysis": "",
@@ -166,6 +178,80 @@ class AgentOrchestrator:
         )
 
         return result
+
+    async def _fetch_live_market_data(self, symbol: str) -> dict[str, Any]:
+        """Fetch live market data from Binance public API."""
+        import httpx
+
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(
+                    f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}"
+                )
+                resp.raise_for_status()
+                data = resp.json()
+
+            price = float(data["lastPrice"])
+            high = float(data["highPrice"])
+            low = float(data["lowPrice"])
+            open_price = float(data["openPrice"])
+            volume = float(data["volume"])
+            quote_volume = float(data["quoteVolume"])
+            trade_count = int(data["count"])
+            change_pct = float(data["priceChangePercent"])
+
+            # Derived features
+            vwap = quote_volume / volume if volume > 0 else price
+            volatility = (high - low) / price if price > 0 else 0
+            high_low_range = ((high - low) / low * 100) if low > 0 else 0
+
+            # RSI approximation from 24h change
+            if change_pct > 5:
+                rsi = 75 + min(change_pct, 25)
+            elif change_pct > 0:
+                rsi = 50 + change_pct * 5
+            elif change_pct > -5:
+                rsi = 50 + change_pct * 5
+            else:
+                rsi = max(25 + change_pct, 0)
+
+            # Buy/sell ratio approximation
+            buy_sell_ratio = 0.5 + (change_pct / 20)
+            buy_sell_ratio = max(0.1, min(0.9, buy_sell_ratio))
+
+            market_data = {
+                "close": price,
+                "open": open_price,
+                "high": high,
+                "low": low,
+                "volume": volume,
+                "quote_volume": quote_volume,
+                "trade_count": trade_count,
+                "vwap": round(vwap, 2),
+                "volatility": round(volatility, 6),
+                "rsi": round(rsi, 1),
+                "ema_20": round(price * 0.98, 2),
+                "buy_sell_ratio": round(buy_sell_ratio, 4),
+                "price_change_pct": round(change_pct, 2),
+                "high_low_range": round(high_low_range, 4),
+                "trade_intensity": round(trade_count / 86400, 2),
+            }
+
+            logger.info(
+                "live_data_fetched",
+                symbol=symbol,
+                price=price,
+                change_pct=change_pct,
+            )
+            return market_data
+
+        except Exception as e:
+            logger.error("binance_fetch_failed", symbol=symbol, error=str(e))
+            return {
+                "close": 0, "volume": 0, "volatility": 0,
+                "rsi": 50, "buy_sell_ratio": 0.5, "price_change_pct": 0,
+                "trade_count": 0, "high_low_range": 0, "trade_intensity": 0,
+            }
 
     async def get_features(self, symbol: str) -> dict[str, Any]:
         """Get market features (for FeatureService compatibility)."""

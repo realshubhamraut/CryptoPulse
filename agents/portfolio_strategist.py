@@ -48,7 +48,7 @@ def portfolio_strategist_node(state: AgentState) -> dict[str, Any]:
 
     Synthesizes all agent analyses into a final recommendation.
     """
-    from langchain_google_genai import ChatGoogleGenerativeAI
+    from langchain_groq import ChatGroq
 
     symbol = state.get("symbol", "UNKNOWN")
     market_analysis = state.get("market_analysis", "No market analysis available.")
@@ -58,8 +58,8 @@ def portfolio_strategist_node(state: AgentState) -> dict[str, Any]:
 
     current_price = market_data.get("close", "N/A")
 
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
+    llm = ChatGroq(
+        model="llama-3.3-70b-versatile",
         temperature=0.2,
     )
 

@@ -23,11 +23,11 @@ echo "  ✓ Wheel uploaded"
 
 # 2. Re-import notebooks
 echo "[2/2] Importing notebooks..."
-for NB in "$PROJECT_ROOT"/notebooks/*.py; do
-    NB_NAME=$(basename "$NB" .py)
-    databricks workspace import "$NB" "/CryptoPulse/${NB_NAME}" \
-        --language PYTHON --overwrite 2>/dev/null || true
-    echo "  ✓ ${NB_NAME}"
+for NB in "$PROJECT_ROOT"/notebooks/*.ipynb; do
+    NB_NAME=$(basename "$NB" .ipynb)
+    databricks workspace import "$NB" "/CryptoPulse/notebooks/${NB_NAME}" \
+        --language PYTHON --format JUPYTER --overwrite 2>/dev/null || true
+    echo "  ${NB_NAME}"
 done
 
 echo ""

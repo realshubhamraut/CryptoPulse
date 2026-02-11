@@ -58,7 +58,7 @@ class BinanceWebSocketClient:
             batch_size: Number of events to batch before callback
             batch_timeout_ms: Maximum wait time for batch in milliseconds
         """
-        self.trading_pairs = trading_pairs or settings.binance.trading_pairs
+        self.trading_pairs = trading_pairs or settings.binance.trading_pair_list
         self.on_trade = on_trade
         self.batch_size = batch_size
         self.batch_timeout_ms = batch_timeout_ms
@@ -253,7 +253,7 @@ class BinanceOrderBookClient:
             trading_pairs: List of trading pairs
             depth_levels: Order book depth (5, 10, or 20)
         """
-        self.trading_pairs = trading_pairs or settings.binance.trading_pairs[:10]
+        self.trading_pairs = trading_pairs or settings.binance.trading_pair_list[:10]
         self.depth_levels = depth_levels
         
         # Local order book state

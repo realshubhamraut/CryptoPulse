@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>📊 Market Dashboard</h2>
+    <p>Live cryptocurrency prices and AI-powered market intelligence</p>
+</div>
+
+<div class="page-body">
+    <!-- Price Tickers -->
+    <div class="grid grid-4" id="ticker-grid">
+        {% for symbol, coin in coins.items() %}
+        <div class="card ticker-card" id="ticker-{{ symbol }}" onclick="window.location='/analyze/{{ symbol }}'">
+            <div class="card-body">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div>
+                        <div class="ticker-symbol">{{ coin.icon }} {{ coin.short }}</div>
+                        <div class="ticker-name">{{ coin.name }}</div>
+                    </div>
+                    <span class="badge badge-blue" style="font-size:10px;">LIVE</span>
+                </div>
+                <div class="ticker-price" id="price-{{ symbol }}">--</div>
+                <span class="ticker-change" id="change-{{ symbol }}">--%</span>
+                <div class="ticker-actions">
+                    <button class="btn btn-sm btn-primary"
+                        onclick="event.stopPropagation(); window.location='/analyze/{{ symbol }}'">
+                        <i data-lucide="brain-circuit" style="width:14px;height:14px;"></i> Analyze
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Stats Row -->
+    <div class="grid grid-4" style="margin-top: 24px;">
+        <div class="card">
+            <div class="stat">
+                <div class="stat-value" id="total-volume">--</div>
+                <div class="stat-label">24h Total Volume</div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="stat">
+                <div class="stat-value" id="total-trades">--</div>
+                <div class="stat-label">24h Total Trades</div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="stat">
+                <div class="stat-value" id="market-sentiment">--</div>
+                <div class="stat-label">Market Sentiment</div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="stat">
+                <div class="stat-value" id="active-agents">4</div>
+                <div class="stat-label">AI Agents Online</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Two Column Layout -->
+    <div class="grid grid-2" style="margin-top: 24px;">
+        <!-- Recent News -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i data-lucide="newspaper" style="width:16px;height:16px;"></i> Latest News</h3>
+                <a href="/news" class="btn btn-sm btn-ghost">View All →</a>
+            </div>
+            <div id="dashboard-news">
+                <div class="loading-overlay">
+                    <div class="spinner"></div>
+                    <span>Loading news...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Market Overview Chart -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i data-lucide="bar-chart-3" style="width:16px;height:16px;"></i> 24h Performance</h3>
+            </div>
+            <div class="card-body">
+                <canvas id="performance-chart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Load prices on page load and refresh every 15s
+    loadPrices();
+    loadDashboardNews();
+    setInterval(loadPrices, 15000);
+    setInterval(loadDashboardNews, 60000);
+</script>
+{% endblock %}

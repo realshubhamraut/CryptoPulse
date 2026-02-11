@@ -4,11 +4,9 @@
 # Simulates Azure infrastructure locally using open-source alternatives
 #
 # Usage:
-#   docker-compose up -d          # Start all services
-#   docker-compose logs -f kafka  # View Kafka logs
-#   docker-compose down -v        # Stop and remove volumes
-
-version: "3.9"
+#   docker compose up -d          # Start all services
+#   docker compose logs -f kafka  # View Kafka logs
+#   docker compose down -v        # Stop and remove volumes
 
 services:
   # ---------------------------------------------------------------------------
@@ -93,7 +91,7 @@ services:
     volumes:
       - minio-data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -108,16 +106,7 @@ services:
       minio:
         condition: service_healthy
     entrypoint: >
-      /bin/sh -c "
-      mc alias set myminio http://minio:9000 minioadmin minioadmin;
-      mc mb --ignore-existing myminio/cryptopulse-bronze;
-      mc mb --ignore-existing myminio/cryptopulse-silver;
-      mc mb --ignore-existing myminio/cryptopulse-gold;
-      mc mb --ignore-existing myminio/cryptopulse-checkpoints;
-      mc mb --ignore-existing myminio/cryptopulse-mlflow;
-      echo 'Buckets created successfully';
-      exit 0;
-      "
+      /bin/sh -c " mc alias set myminio http://minio:9000 minioadmin minioadmin; mc mb --ignore-existing myminio/cryptopulse-bronze; mc mb --ignore-existing myminio/cryptopulse-silver; mc mb --ignore-existing myminio/cryptopulse-gold; mc mb --ignore-existing myminio/cryptopulse-checkpoints; mc mb --ignore-existing myminio/cryptopulse-mlflow; echo 'Buckets created successfully'; exit 0; "
 
   # ---------------------------------------------------------------------------
   # Spark Master
@@ -170,7 +159,7 @@ services:
       - redis-data:/data
     command: redis-server --appendonly yes
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -188,11 +177,7 @@ services:
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin
     command: >
-      mlflow server 
-      --host 0.0.0.0 
-      --port 5000 
-      --backend-store-uri sqlite:///mlflow.db
-      --default-artifact-root s3://cryptopulse-mlflow/
+      mlflow server  --host 0.0.0.0  --port 5000  --backend-store-uri sqlite:///mlflow.db --default-artifact-root s3://cryptopulse-mlflow/
     volumes:
       - mlflow-data:/mlflow
     depends_on:
@@ -211,6 +196,7 @@ services:
       - "8000:8000"
     environment:
       CRYPTOPULSE_ENV: development
+      PYTHONPATH: /app
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       REDIS_URL: redis://redis:6379/0
       MLFLOW_TRACKING_URI: http://mlflow:5000
@@ -218,11 +204,11 @@ services:
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
-      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
       API_HOST: 0.0.0.0
-      API_PORT: 8000
+      API_PORT: "8000"
       API_RELOAD: "false"
-      API_WORKERS: 2
+      API_WORKERS: "2"
     env_file:
       - .env
     depends_on:
@@ -233,7 +219,7 @@ services:
       minio-setup:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()"]
+      test: [ "CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -248,27 +234,12 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: cryptopulse-ingestion
-    entrypoint: ["python", "-c", "
-      import asyncio, time;
-      from functions.binance_ingestion import ingest_trades;
-      from functions.news_ingestion import ingest_news;
-
-      async def run():
-          while True:
-              try:
-                  await ingest_trades(publish=True);
-                  await ingest_news(publish=True);
-              except Exception as e:
-                  print(f'Ingestion error: {e}');
-              time.sleep(30);
-
-      asyncio.run(run())
-    "]
+    entrypoint: [ "python", "-m", "scripts.ingestion_loop" ]
     environment:
+      PYTHONPATH: /app
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       BINANCE_REST_URL: https://api.binance.com
       BINANCE_TRADING_PAIRS: BTCUSDT,ETHUSDT,BNBUSDT,SOLUSDT,XRPUSDT
-      NEWS_CRAWL_INTERVAL: 60
       CRYPTOPULSE_ENV: development
     env_file:
       - .env
@@ -289,9 +260,9 @@ volumes:
   redis-data:
   mlflow-data:
 
-# -----------------------------------------------------------------------------
-# Networks
-# -----------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------
+    # Networks
+    # -----------------------------------------------------------------------------
 networks:
   default:
     name: cryptopulse-network

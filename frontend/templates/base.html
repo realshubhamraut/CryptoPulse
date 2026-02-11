@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CryptoPulse{% endblock %} — AI Crypto Intelligence</title>
+    <meta name="description" content="Real-time cryptocurrency analysis powered by multi-agent AI, Spark MLlib, and live market data.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="logo">CP</div>
+                <div>
+                    <h1>CryptoPulse</h1>
+                    <div class="version">AI Intelligence Platform</div>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section-title">Overview</div>
+                <a href="/" class="nav-link {{ 'active' if page == 'dashboard' }}">
+                    <i data-lucide="layout-dashboard" class="icon"></i>
+                    Dashboard
+                </a>
+                <a href="/news" class="nav-link {{ 'active' if page == 'news' }}">
+                    <i data-lucide="newspaper" class="icon"></i>
+                    Live News
+                </a>
+
+                <div class="nav-section-title">Analysis</div>
+                <a href="/analyze" class="nav-link {{ 'active' if page == 'analyze' }}">
+                    <i data-lucide="brain-circuit" class="icon"></i>
+                    Agent Analysis
+                </a>
+                <a href="/ml" class="nav-link {{ 'active' if page == 'ml' }}">
+                    <i data-lucide="workflow" class="icon"></i>
+                    ML Pipeline
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="status-badge" id="api-status">
+                    <span class="status-dot"></span>
+                    <span>API Connected</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main -->
+        <main class="main-content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>lucide.createIcons();</script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

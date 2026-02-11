@@ -117,7 +117,7 @@ def _make_base_state():
 class TestMarketAnalyst:
     """Test MarketAnalyst agent node."""
 
-    @patch("langchain_google_genai.ChatGoogleGenerativeAI")
+    @patch("langchain_groq.ChatGroq")
     def test_with_llm(self, mock_llm_class):
         from agents.market_analyst import market_analyst_node
 
@@ -134,7 +134,7 @@ class TestMarketAnalyst:
         """Test heuristic fallback when LLM fails."""
         from agents.market_analyst import market_analyst_node
 
-        with patch("langchain_google_genai.ChatGoogleGenerativeAI") as mock_cls:
+        with patch("langchain_groq.ChatGroq") as mock_cls:
             mock_cls.return_value.invoke.side_effect = Exception("No API key")
 
             result = market_analyst_node(_make_base_state())
@@ -148,7 +148,7 @@ class TestSentimentAnalyst:
     def test_fallback(self):
         from agents.sentiment_analyst import sentiment_analyst_node
 
-        with patch("langchain_google_genai.ChatGoogleGenerativeAI") as mock_cls:
+        with patch("langchain_groq.ChatGroq") as mock_cls:
             mock_cls.return_value.invoke.side_effect = Exception("No API key")
 
             result = sentiment_analyst_node(_make_base_state())
@@ -164,7 +164,7 @@ class TestRiskManager:
         state = _make_base_state()
         state["anomaly_data"] = [{"type": "volume_spike", "severity": 0.8}]
 
-        with patch("langchain_google_genai.ChatGoogleGenerativeAI") as mock_cls:
+        with patch("langchain_groq.ChatGroq") as mock_cls:
             mock_cls.return_value.invoke.side_effect = Exception("No API key")
 
             result = risk_manager_node(state)

@@ -4,6 +4,9 @@ CryptoPulse - REST API
 FastAPI application for serving predictions, features, and anomaly alerts.
 """
 
+from dotenv import load_dotenv
+load_dotenv()  # Load .env before anything else
+
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from typing import Any

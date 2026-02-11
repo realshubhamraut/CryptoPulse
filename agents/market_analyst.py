@@ -36,7 +36,7 @@ def market_analyst_node(state: AgentState) -> dict[str, Any]:
 
     Analyzes market data and produces a technical analysis summary.
     """
-    from langchain_google_genai import ChatGoogleGenerativeAI
+    from langchain_groq import ChatGroq
 
     symbol = state.get("symbol", "UNKNOWN")
     market_data = state.get("market_data", {})
@@ -47,8 +47,8 @@ def market_analyst_node(state: AgentState) -> dict[str, Any]:
         indent=2,
     )
 
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
+    llm = ChatGroq(
+        model="llama-3.3-70b-versatile",
         temperature=0.1,
     )
 

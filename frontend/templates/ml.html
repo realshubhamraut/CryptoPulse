@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+{% block title %}ML Pipeline{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>⚙️ ML Pipeline & Architecture</h2>
+    <p>How CryptoPulse uses Spark MLlib, Delta Lake, and multi-agent AI to analyze crypto markets</p>
+</div>
+
+<div class="page-body">
+    <!-- Medallion Architecture -->
+    <div class="card" style="margin-bottom: 24px;">
+        <div class="card-header">
+            <h3><i data-lucide="layers" style="width:16px;height:16px;"></i> Medallion Architecture (Delta Lake)</h3>
+        </div>
+        <div class="card-body">
+            <div class="pipeline-stage stage-bronze">
+                <div class="stage-icon">🥉</div>
+                <div style="flex:1;">
+                    <h4>Bronze Layer — Raw Ingestion</h4>
+                    <p>Spark Structured Streaming ingests raw trade ticks from Binance WebSocket & news articles from
+                        CoinDesk, CoinTelegraph, CryptoCompare into Delta Lake.</p>
+                </div>
+                <span class="badge badge-amber">Streaming</span>
+            </div>
+            <div class="pipeline-arrow">↓</div>
+
+            <div class="pipeline-stage stage-silver">
+                <div class="stage-icon">🥈</div>
+                <div style="flex:1;">
+                    <h4>Silver Layer — Cleansing & Dedup</h4>
+                    <p>Data quality checks, schema enforcement, deduplication. Trades cleansed into standardized OHLCV
+                        format. News articles normalized with content hashing.</p>
+                </div>
+                <span class="badge badge-blue">Batch + Stream</span>
+            </div>
+            <div class="pipeline-arrow">↓</div>
+
+            <div class="pipeline-stage stage-gold">
+                <div class="stage-icon">🥇</div>
+                <div style="flex:1;">
+                    <h4>Gold Layer — Feature Engineering</h4>
+                    <p>Multi-interval OHLC (1m, 5m, 15m), VWAP, rolling volatility, RSI, EMA-20, buy/sell ratio, trade
+                        intensity, FinBERT sentiment scores.</p>
+                </div>
+                <span class="badge badge-green">Features</span>
+            </div>
+            <div class="pipeline-arrow">↓</div>
+
+            <div class="pipeline-stage stage-model">
+                <div class="stage-icon">🧠</div>
+                <div style="flex:1;">
+                    <h4>ML Model Training (Spark MLlib)</h4>
+                    <p>GBTClassifier pipeline with VectorAssembler → StringIndexer → StandardScaler. Predicts
+                        UP/DOWN/NEUTRAL price direction. Logged to MLflow.</p>
+                </div>
+                <span class="badge badge-purple">MLlib</span>
+            </div>
+            <div class="pipeline-arrow">↓</div>
+
+            <div class="pipeline-stage stage-agent">
+                <div class="stage-icon">🤖</div>
+                <div style="flex:1;">
+                    <h4>LangGraph Multi-Agent System</h4>
+                    <p>4 specialist agents (MarketAnalyst → SentimentAnalyst → RiskManager → PortfolioStrategist)
+                        powered by Groq Llama-3.3-70B synthesize all signals into trading recommendations.</p>
+                </div>
+                <span class="badge badge-blue">Agents</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-2">
+        <!-- Spark MLlib Pipeline -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i data-lucide="cpu" style="width:16px;height:16px;"></i> Spark MLlib Pipeline</h3>
+                <span class="badge badge-purple">pyspark.ml</span>
+            </div>
+            <div class="card-body">
+                <p style="font-size:13px; color:var(--text-secondary); margin-bottom:16px;">
+                    The ML pipeline runs on Databricks using PySpark. Here's how the model training flow works:
+                </p>
+
+                <div
+                    style="background: var(--bg-glass); border-radius: var(--radius-md); padding: 16px; margin-bottom: 16px; font-family: 'JetBrains Mono'; font-size: 12px; line-height: 1.8; color: var(--text-secondary);">
+                    <span style="color: var(--accent-purple);">from</span> pyspark.ml <span
+                        style="color: var(--accent-purple);">import</span> Pipeline
+                    <span style="color: var(--accent-purple);">from</span> pyspark.ml.feature <span
+                        style="color: var(--accent-purple);">import</span> (
+                    VectorAssembler, StringIndexer, StandardScaler
+                    )
+                    <span style="color: var(--accent-purple);">from</span> pyspark.ml.classification <span
+                        style="color: var(--accent-purple);">import</span> GBTClassifier
+
+                    <span style="color: var(--text-muted);"># 1. Assemble feature columns into vector</span>
+                    assembler = VectorAssembler(
+                    inputCols=FEATURE_COLS,
+                    outputCol=<span style="color: var(--accent-green);">"features_raw"</span>
+                    )
+
+                    <span style="color: var(--text-muted);"># 2. Scale features</span>
+                    scaler = StandardScaler(
+                    inputCol=<span style="color: var(--accent-green);">"features_raw"</span>,
+                    outputCol=<span style="color: var(--accent-green);">"features"</span>
+                    )
+
+                    <span style="color: var(--text-muted);"># 3. Index label (UP/DOWN/NEUTRAL → 0/1/2)</span>
+                    indexer = StringIndexer(
+                    inputCol=<span style="color: var(--accent-green);">"label"</span>,
+                    outputCol=<span style="color: var(--accent-green);">"label_idx"</span>
+                    )
+
+                    <span style="color: var(--text-muted);"># 4. GBT Classifier</span>
+                    gbt = GBTClassifier(
+                    featuresCol=<span style="color: var(--accent-green);">"features"</span>,
+                    labelCol=<span style="color: var(--accent-green);">"label_idx"</span>,
+                    maxDepth=<span style="color: var(--accent-amber);">6</span>,
+                    maxIter=<span style="color: var(--accent-amber);">200</span>
+                    )
+
+                    <span style="color: var(--text-muted);"># 5. Chain into Pipeline</span>
+                    pipeline = Pipeline(stages=[
+                    assembler, scaler, indexer, gbt
+                    ])
+                    model = pipeline.fit(train_df)
+                </div>
+            </div>
+        </div>
+
+        <!-- Model Cards -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i data-lucide="box" style="width:16px;height:16px;"></i> Model Registry</h3>
+            </div>
+            <div class="card-body">
+                <!-- Price Direction Model -->
+                <h4 style="font-size:14px; margin-bottom:12px;">🎯 Price Direction Classifier</h4>
+                <div class="model-card" style="margin-bottom:24px;">
+                    <div class="field">
+                        <div class="field-label">Algorithm</div>
+                        <div class="field-value">GBTClassifier</div>
+                    </div>
+                    <div class="field">
+                        <div class="field-label">Framework</div>
+                        <div class="field-value">Spark MLlib</div>
+                    </div>
+                    <div class="field">
+                        <div class="field-label">Max Depth</div>
+                        <div class="field-value">6</div>
+                    </div>
+                    <div class="field">
+                        <div class="field-label">Iterations</div>
+                        <div class="field-value">200</div>
+                    </div>
+                    <div class="field">
+                        <div class="field-label">Labels</div>
+                        <div class="field-value">UP / DOWN / NEUTRAL</div>
+                    </div>
+                    <div class="field">
+                        <div class="field-label">Horizon</div>
+                        <div class="field-value">5 min default</div>
+                    </div>
+                </div>
+
+                <!-- Anomaly Model -->
+                <h4 style="font-size:14px; margin-bottom:12px;">🔍 Anomaly Detector</h4>
+                <div class="model-card">
+                    <div class="field">
+                        <div class="field-label">Algorithm</div>
+                        <div class="field-value">IsolationForest</div>
+                    </div>
+                    <div class="field">
+                        <div class="field-label">Framework</div>
+                        <div class="field-value">scikit-learn</div>
+                    </div>
+                    <div class="field">
+                        <div class="field-label">Contamination</div>
+                        <div class="field-value">1%</div>
+                    </div>
+                    <div class="field">
+                        <div class="field-label">Detects</div>
+                        <div class="field-value">Pump, Dump, Wash</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature Importance -->
+    <div class="card" style="margin-top: 24px;">
+        <div class="card-header">
+            <h3><i data-lucide="bar-chart-horizontal" style="width:16px;height:16px;"></i> Feature Importance</h3>
+            <span class="badge badge-purple">GBTClassifier</span>
+        </div>
+        <div class="card-body">
+            <div id="feature-importance">
+                <div class="feature-bar">
+                    <span class="name">price_change_pct</span>
+                    <div class="bar-track">
+                        <div class="bar-fill" style="width: 95%;"></div>
+                    </div>
+                    <span class="value">0.95</span>
+                </div>
+                <div class="feature-bar">
+                    <span class="name">volatility</span>
+                    <div class="bar-track">
+                        <div class="bar-fill" style="width: 82%;"></div>
+                    </div>
+                    <span class="value">0.82</span>
+                </div>
+                <div class="feature-bar">
+                    <span class="name">rsi</span>
+                    <div class="bar-track">
+                        <div class="bar-fill" style="width: 78%;"></div>
+                    </div>
+                    <span class="value">0.78</span>
+                </div>
+                <div class="feature-bar">
+                    <span class="name">buy_sell_ratio</span>
+                    <div class="bar-track">
+                        <div class="bar-fill" style="width: 71%;"></div>
+                    </div>
+                    <span class="value">0.71</span>
+                </div>
+                <div class="feature-bar">
+                    <span class="name">vwap_deviation</span>
+                    <div class="bar-track">
+                        <div class="bar-fill" style="width: 65%;"></div>
+                    </div>
+                    <span class="value">0.65</span>
+                </div>
+                <div class="feature-bar">
+                    <span class="name">trade_intensity</span>
+                    <div class="bar-track">
+                        <div class="bar-fill" style="width: 58%;"></div>
+                    </div>
+                    <span class="value">0.58</span>
+                </div>
+                <div class="feature-bar">
+                    <span class="name">volume</span>
+                    <div class="bar-track">
+                        <div class="bar-fill" style="width: 52%;"></div>
+                    </div>
+                    <span class="value">0.52</span>
+                </div>
+                <div class="feature-bar">
+                    <span class="name">ema_20</span>
+                    <div class="bar-track">
+                        <div class="bar-fill" style="width: 45%;"></div>
+                    </div>
+                    <span class="value">0.45</span>
+                </div>
+                <div class="feature-bar">
+                    <span class="name">sentiment_score</span>
+                    <div class="bar-track">
+                        <div class="bar-fill" style="width: 38%;"></div>
+                    </div>
+                    <span class="value">0.38</span>
+                </div>
+                <div class="feature-bar">
+                    <span class="name">article_count</span>
+                    <div class="bar-track">
+                        <div class="bar-fill" style="width: 25%;"></div>
+                    </div>
+                    <span class="value">0.25</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Technology Stack -->
+    <div class="card" style="margin-top: 24px;">
+        <div class="card-header">
+            <h3><i data-lucide="blocks" style="width:16px;height:16px;"></i> Technology Stack</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Component</th>
+                            <th>Technology</th>
+                            <th>Purpose</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="badge badge-amber">Data Ingestion</span></td>
+                            <td>Binance WebSocket, httpx</td>
+                            <td>Real-time trade ticks + 24h ticker data</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-amber">News Crawling</span></td>
+                            <td>Custom async crawlers (httpx)</td>
+                            <td>CoinDesk, CoinTelegraph, CryptoCompare</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-blue">Stream Processing</span></td>
+                            <td>Apache Spark Structured Streaming</td>
+                            <td>Real-time feature computation on Delta Lake</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-blue">Storage</span></td>
+                            <td>Delta Lake (Bronze/Silver/Gold)</td>
+                            <td>ACID transactions, time travel, schema evolution</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-purple">ML Training</span></td>
+                            <td>PySpark MLlib (GBTClassifier)</td>
+                            <td>Price direction prediction with 15+ features</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-purple">Anomaly Detection</span></td>
+                            <td>scikit-learn (IsolationForest)</td>
+                            <td>Pump/dump/wash trade detection</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-purple">NLP</span></td>
+                            <td>FinBERT (ProsusAI/finbert)</td>
+                            <td>Financial sentiment analysis on news</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-green">AI Agents</span></td>
+                            <td>LangGraph + Groq (Llama 3.3 70B)</td>
+                            <td>4-agent pipeline: market, sentiment, risk, strategy</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-green">Experiment Tracking</span></td>
+                            <td>MLflow on Databricks</td>
+                            <td>Model versioning, metrics, artifact logging</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-green">API</span></td>
+                            <td>FastAPI</td>
+                            <td>REST API serving predictions & agent analysis</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-green">Frontend</span></td>
+                            <td>Flask + HTMX + Chart.js</td>
+                            <td>Professional dashboard with live data</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-blue">Infrastructure</span></td>
+                            <td>Azure App Runner, Databricks, Docker</td>
+                            <td>Cloud deployment and orchestration</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

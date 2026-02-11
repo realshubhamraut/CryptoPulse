@@ -27,26 +27,19 @@ class BinanceConfig(BaseSettings):
         default="https://api.binance.com",
         description="Binance REST API endpoint",
     )
-    trading_pairs: list[str] = Field(
-        default=[
-            "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT",
-            "ADAUSDT", "DOGEUSDT", "AVAXUSDT", "DOTUSDT", "MATICUSDT",
-            "LINKUSDT", "UNIUSDT", "ATOMUSDT", "LTCUSDT", "ETCUSDT",
-            "XLMUSDT", "NEARUSDT", "APTUSDT", "FILUSDT", "ARBUSDT",
-        ],
-        description="Trading pairs to track",
+    trading_pairs: str = Field(
+        default="BTCUSDT,ETHUSDT,BNBUSDT,SOLUSDT,XRPUSDT,ADAUSDT,DOGEUSDT,AVAXUSDT,DOTUSDT,MATICUSDT,LINKUSDT,UNIUSDT,ATOMUSDT,LTCUSDT,ETCUSDT,XLMUSDT,NEARUSDT,APTUSDT,FILUSDT,ARBUSDT",
+        description="Comma-separated trading pairs to track",
     )
     rate_limit_per_minute: int = Field(
         default=1200,
         description="Binance rate limit per minute",
     )
 
-    @field_validator("trading_pairs", mode="before")
-    @classmethod
-    def parse_trading_pairs(cls, v: str | list[str]) -> list[str]:
-        if isinstance(v, str):
-            return [pair.strip().upper() for pair in v.split(",")]
-        return [pair.upper() for pair in v]
+    @property
+    def trading_pair_list(self) -> list[str]:
+        """Get trading pairs as a list."""
+        return [p.strip().upper() for p in self.trading_pairs.split(",")]
 
 
 class KafkaConfig(BaseSettings):

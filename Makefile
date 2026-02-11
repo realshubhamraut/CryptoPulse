@@ -9,28 +9,28 @@ help: ## Show this help
 
 # ── Setup ───────────────────────────────────────────────────────────────────
 install: ## Install all dependencies
-	python -m venv .venv
-	. .venv/bin/activate && pip install -e ".[dev]"
+	python -m venv venv
+	. venv/bin/activate && pip install -e ".[dev]"
 
 # ── Development ─────────────────────────────────────────────────────────────
 dev: ## Start FastAPI dev server
-	. .venv/bin/activate && python -m api.main
+	. venv/bin/activate && python -m api.main
 
 dev-docker: ## Start full local stack (Kafka, Spark, Redis, MLflow, API)
 	docker compose up -d
 
 # ── Testing & Quality ───────────────────────────────────────────────────────
 test: ## Run all tests
-	. .venv/bin/activate && pytest tests/ -v --tb=short
+	. venv/bin/activate && pytest tests/ -v --tb=short
 
 test-cov: ## Run tests with coverage
-	. .venv/bin/activate && pytest tests/ -v --cov=cryptopulse --cov=agents --cov=api --cov-report=term-missing
+	. venv/bin/activate && pytest tests/ -v --cov=cryptopulse --cov=agents --cov=api --cov-report=term-missing
 
 lint: ## Run linting (ruff + mypy)
-	. .venv/bin/activate && ruff check . && mypy cryptopulse/ agents/ api/
+	. venv/bin/activate && ruff check . && mypy cryptopulse/ agents/ api/
 
 format: ## Format code with black + ruff
-	. .venv/bin/activate && black . && ruff check --fix .
+	. venv/bin/activate && black . && ruff check --fix .
 
 # ── Docker ──────────────────────────────────────────────────────────────────
 docker-build: ## Build the API Docker image
@@ -57,10 +57,10 @@ deploy-dbx: ## Configure Databricks workspace
 
 # ── Ingestion (local testing) ───────────────────────────────────────────────
 ingest-trades: ## Run Binance trade ingestion locally
-	. .venv/bin/activate && python -m functions.binance_ingestion
+	. venv/bin/activate && python -m functions.binance_ingestion
 
 ingest-news: ## Run news crawl ingestion locally
-	. .venv/bin/activate && python -m functions.news_ingestion
+	. venv/bin/activate && python -m functions.news_ingestion
 
 # ── Cleanup ─────────────────────────────────────────────────────────────────
 clean: ## Clean build artifacts
