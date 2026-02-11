@@ -8,22 +8,22 @@
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                    Azure Databricks                         │
-│  ┌────────────┐  ┌──────────┐  ┌──────────┐  ┌───────────┐ │
-│  │  Ingestion  │→│  Bronze   │→│  Silver   │→│   Gold     │ │
-│  │  (Binance)  │ │  (Delta)  │ │  (Delta)  │ │  Features  │ │
-│  └────────────┘  └──────────┘  └──────────┘  └───────────┘ │
+│                    Azure Databricks                          │
+│  ┌────────────┐  ┌──────────┐  ┌──────────┐  ┌───────────┐   │
+│  │  Ingestion │→ │  Bronze  │→ │  Silver  │→ │   Gold    │   │
+│  │  (Binance) │  │  (Delta) │  │  (Delta) │  │ Features  │   │
+│  └────────────┘  └──────────┘  └──────────┘  └───────────┘   │
 │                                                              │
-│  ┌────────────┐  ┌──────────┐  ┌──────────────────────────┐ │
-│  │  FinBERT    │  │  MLlib   │  │  Isolation Forest        │ │
-│  │  Sentiment  │  │  GBT     │  │  Anomaly Detection       │ │
-│  └────────────┘  └──────────┘  └──────────────────────────┘ │
+│  ┌────────────┐  ┌──────────┐  ┌──────────────────────────┐  │
+│  │  FinBERT   │  │  MLlib   │  │  Isolation Forest        │  │
+│  │  Sentiment │  │  GBT     │  │  Anomaly Detection       │  │
+│  └────────────┘  └──────────┘  └──────────────────────────┘  │
 │                                                              │
 │  ┌──────────────────────────────────────────────────────────┐│
 │  │  LangGraph Multi-Agent System (Type 5)                   ││
 │  │  MarketAnalyst → SentimentAnalyst → RiskManager          ││
 │  │                    ↓                                     ││
-│  │              PortfolioStrategist → Recommendation         ││
+│  │              PortfolioStrategist → Recommendation        ││
 │  └──────────────────────────────────────────────────────────┘│
 └──────────────────────────────────────────────────────────────┘
          │
