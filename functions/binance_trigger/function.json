@@ -1,0 +1,14 @@
+{
+    "scriptFile": "../binance_ingestion.py",
+    "entryPoint": "main",
+    "bindings": [
+        {
+            "name": "timer",
+            "type": "timerTrigger",
+            "direction": "in",
+            "schedule": "*/30 * * * * *",
+            "runOnStartup": false,
+            "useMonitor": true
+        }
+    ]
+}

@@ -1,0 +1,14 @@
+{
+    "scriptFile": "../news_ingestion.py",
+    "entryPoint": "main",
+    "bindings": [
+        {
+            "name": "timer",
+            "type": "timerTrigger",
+            "direction": "in",
+            "schedule": "0 * * * * *",
+            "runOnStartup": false,
+            "useMonitor": true
+        }
+    ]
+}

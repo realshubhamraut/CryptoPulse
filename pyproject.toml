@@ -1,0 +1,146 @@
+[project]
+name = "cryptopulse"
+version = "0.1.0"
+description = "Enterprise-grade real-time cryptocurrency market intelligence and prediction platform"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "CryptoPulse Team" }]
+keywords = ["cryptocurrency", "trading", "analytics", "machine-learning", "streaming"]
+
+dependencies = [
+    # Core
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "python-dotenv>=1.0.0",
+    "structlog>=23.2.0",
+    "httpx>=0.25.0",
+    "aiohttp>=3.9.0",
+    "websockets>=12.0",
+    
+    # Azure
+    "azure-eventhub>=5.11.0",
+    "azure-identity>=1.15.0",
+    "azure-keyvault-secrets>=4.7.0",
+    "azure-storage-blob>=12.19.0",
+    
+    # Streaming & Data
+    "pyspark>=3.5.0",
+    "delta-spark>=3.0.0",
+    "kafka-python>=2.0.2",
+    "confluent-kafka>=2.3.0",
+    
+    # ML & NLP
+    "scikit-learn>=1.3.0",
+    "xgboost>=2.0.0",
+    "lightgbm>=4.2.0",
+    "mlflow>=2.9.0",
+    "transformers>=4.36.0",
+    "torch>=2.1.0",
+    "pandas>=2.1.0",
+    "numpy>=1.26.0",
+    
+    # API
+    "fastapi>=0.108.0",
+    "uvicorn[standard]>=0.25.0",
+    "python-multipart>=0.0.6",
+    
+    # LangGraph Multi-Agent
+    "langgraph>=0.2.0",
+    "langchain-core>=0.3.0",
+    "langchain-google-genai>=2.0.0",
+
+    # Utilities
+    "redis>=5.0.0",
+    "xxhash>=3.4.0",
+    "tenacity>=8.2.0",
+    "croniter>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "pytest-timeout>=2.2.0",
+    "black>=23.12.0",
+    "ruff>=0.1.0",
+    "mypy>=1.8.0",
+    "pre-commit>=3.6.0",
+    "ipython>=8.18.0",
+]
+
+functions = [
+    "azure-functions>=1.17.0",
+]
+
+[project.scripts]
+cryptopulse = "cryptopulse.cli:main"
+
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cryptopulse*", "functions*", "pipelines*", "models*", "agents*", "api*"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.mypy_cache
+  | \.venv
+  | build
+  | dist
+  | __pycache__
+)/
+'''
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = ["E501", "B008", "B904"]
+
+[tool.ruff.isort]
+known-first-party = ["cryptopulse", "functions", "pipelines", "models", "agents", "api"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["cryptopulse", "functions", "pipelines", "models", "agents", "api"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
