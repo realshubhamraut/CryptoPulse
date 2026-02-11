@@ -1,4 +1,4 @@
-# CryptoPulse 🚀
+# CryptoPulse
 
 **Real-time cryptocurrency analytics platform powered by Azure Databricks & LangGraph AI agents.**
 
