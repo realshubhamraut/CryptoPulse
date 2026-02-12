@@ -86,10 +86,10 @@ class SilverNewsPipeline:
     ):
         self.spark = spark or self._create_spark_session()
         self.checkpoint_location = (
-            checkpoint_location or f"{settings.storage.delta_lake_path}/checkpoints/silver_news"
+            checkpoint_location or f"{settings.storage.adls_delta_path}/checkpoints/silver_news"
         )
-        self.bronze_path = bronze_path or f"{settings.storage.delta_lake_path}/bronze/news"
-        self.output_path = output_path or f"{settings.storage.delta_lake_path}/silver/news"
+        self.bronze_path = bronze_path or f"{settings.storage.adls_delta_path}/bronze/news"
+        self.output_path = output_path or f"{settings.storage.adls_delta_path}/silver/news"
     
     def _create_spark_session(self) -> SparkSession:
         """Create Spark session."""

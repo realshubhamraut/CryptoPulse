@@ -144,15 +144,36 @@ python frontend/app.py
 # → http://localhost:5050
 ```
 
-### 5. Azure Infrastructure (Cloud Deployment)
+### 5. Azure Cloud Deployment
 
 ```bash
+# One-command full deployment (runs all phases)
+make deploy-azure
+
+# Or phase by phase:
 az login
-bash infrastructure/azure_setup.sh            # Provision Azure resources
-databricks configure                           # Configure Databricks CLI
-bash infrastructure/databricks_setup.sh        # Setup workspace
-bash infrastructure/deploy_to_databricks.sh    # Deploy notebooks + wheel
+bash infrastructure/azure_setup.sh             # Phase 1: Provision 9 Azure resources
+bash infrastructure/deploy_containers.sh       # Phase 2: Build & push Docker images to ACR
+bash infrastructure/deploy_functions.sh        # Phase 3: Deploy Azure Functions
+bash infrastructure/deploy_apps.sh             # Phase 4: Deploy API + Frontend to Container Apps
+bash infrastructure/databricks_setup.sh        # Phase 5: Setup Databricks cluster + notebooks
+bash infrastructure/configure_secrets.sh       # Phase 6: Wire Key Vault secrets
+bash infrastructure/verify_deployment.sh       # Phase 7: Verify all services
 ```
+
+#### Service Access Map (Post-Deployment)
+
+| Service | Port | URL |
+|---------|------|-----|
+| FastAPI | 8000 | `https://cryptopulse-api-dev.azurecontainerapps.io` |
+| Flask Dashboard | 5050 | `https://cryptopulse-frontend-dev.azurecontainerapps.io` |
+| Azure Functions | — | `https://func-cryptopulse-dev.azurewebsites.net` |
+| Databricks | 443 | `https://adb-<id>.azuredatabricks.net` |
+| Event Hubs | 9093 | `evhns-cryptopulse-dev.servicebus.windows.net` |
+| ADLS Gen2 | 443 | `abfss://cryptopulse-delta@stcryptopulsedev.dfs.core.windows.net` |
+| Redis Cache | 6380 | `cryptopulse-redis-dev.redis.cache.windows.net` |
+| Key Vault | 443 | `https://kv-cryptopulse-dev.vault.azure.net` |
+| Container Registry | 443 | `crcryptopulsedev.azurecr.io` |
 
 ---
 
@@ -195,7 +216,7 @@ CryptoPulse/
 │       ├── news_crawler.py            # Multi-source news crawler framework
 │       └── kafka_producer.py          # Kafka/Event Hubs producer
 │
-├── notebooks/                         # Databricks notebooks (01–10)
+├── notebooks/                         # Databricks notebooks (01–14)
 │   ├── 01_data_ingestion.ipynb           # Binance + News → Event Hubs
 │   ├── 02_bronze_layer.ipynb             # Structured Streaming → Bronze Delta
 │   ├── 03_silver_layer.ipynb             # Cleansing, dedup → Silver Delta
@@ -205,13 +226,26 @@ CryptoPulse/
 │   ├── 07_anomaly_detection.ipynb        # Isolation Forest anomaly detection
 │   ├── 08_model_serving.ipynb            # MLflow Model Registry + batch predict
 │   ├── 09_orchestration.ipynb            # Pipeline orchestration DAG
-│   └── 10_langgraph_agents.ipynb         # Agent experimentation notebook
+│   ├── 10_langgraph_agents.ipynb         # Agent experimentation notebook
+│   ├── 11_spark_mllib_pipeline.ipynb     # Full Spark MLlib pipeline
+│   ├── 12_signal_fusion.ipynb            # Weighted signal fusion
+│   ├── 13_delta_lake_operations.ipynb    # ACID MERGE, time travel, VACUUM
+│   └── 14_adls_gen2_storage.ipynb        # ADLS Gen2 + Event Hubs integration
 │
 ├── pipelines/                         # Spark streaming pipelines
 ├── models/                            # Model definitions & utilities
-├── functions/                         # Azure Functions (Binance ingestion)
+├── functions/                         # Azure Functions (timer-triggered ingestion)
+│   ├── binance_ingestion.py           # Binance trade ingestion handler
+│   ├── news_ingestion.py              # News crawl ingestion handler
+│   └── requirements.txt               # Functions-specific dependencies
+│
 ├── infrastructure/                    # Azure deployment scripts
-│   ├── azure_setup.sh                 # Provision Azure resources via CLI
+│   ├── azure_setup.sh                 # Provision 9 Azure resources (ADLS, ACR, etc.)
+│   ├── deploy_containers.sh           # Build & push Docker images to ACR
+│   ├── deploy_functions.sh            # Deploy Azure Functions
+│   ├── deploy_apps.sh                 # Deploy Container Apps (API + Frontend)
+│   ├── configure_secrets.sh           # Key Vault wiring + .env.azure
+│   ├── verify_deployment.sh           # End-to-end smoke test
 │   ├── databricks_setup.sh            # Configure Databricks workspace
 │   └── deploy_to_databricks.sh        # Quick redeploy notebooks + wheel
 │

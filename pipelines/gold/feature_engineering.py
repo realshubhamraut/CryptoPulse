@@ -60,10 +60,10 @@ class FeatureEngineeringPipeline:
     ):
         self.spark = spark or self._create_spark_session()
         self.checkpoint_location = (
-            checkpoint_location or f"{settings.storage.delta_lake_path}/checkpoints/gold_features"
+            checkpoint_location or f"{settings.storage.adls_delta_path}/checkpoints/gold_features"
         )
-        self.silver_path = silver_path or f"{settings.storage.delta_lake_path}/silver/trades"
-        self.output_path = output_path or f"{settings.storage.delta_lake_path}/gold/features"
+        self.silver_path = silver_path or f"{settings.storage.adls_delta_path}/silver/trades"
+        self.output_path = output_path or f"{settings.storage.adls_delta_path}/gold/features"
     
     def _create_spark_session(self) -> SparkSession:
         """Create Spark session."""
@@ -86,6 +86,21 @@ class FeatureEngineeringPipeline:
             .option("maxFilesPerTrigger", 200)
             .load(self.silver_path)
         )
+
+    def read_batch_from_silver(self, predicate: str | None = None) -> DataFrame:
+        """
+        Read the same Silver Delta table in BATCH mode.
+
+        This demonstrates unified batch/stream processing:
+        the same Delta table written by the streaming Silver pipeline
+        can be read as a static DataFrame for batch feature computation.
+
+        Resume claim: "unified batch/stream processing"
+        """
+        df = self.spark.read.format("delta").load(self.silver_path)
+        if predicate:
+            df = df.filter(predicate)
+        return df
     
     def compute_features_for_interval(
         self,
@@ -263,6 +278,43 @@ class FeatureEngineeringPipeline:
         """Run pipeline and wait for termination."""
         query = self.run()
         query.awaitTermination()
+
+    def run_batch(
+        self,
+        predicate: str | None = None,
+        output_mode: str = "overwrite",
+    ) -> None:
+        """
+        Run feature computation in batch mode.
+
+        Reads the same Silver Delta table that run() (streaming) reads,
+        but as a static DataFrame. Demonstrates unified batch/stream
+        processing on the identical underlying data.
+
+        Args:
+            predicate: SQL filter (e.g., "trade_date >= '2025-01-01'")
+            output_mode: "overwrite" or "append"
+
+        Resume claim: "unified batch/stream processing"
+        """
+        logger.info("starting_batch_feature_computation", predicate=predicate)
+
+        # Read same Silver Delta table in batch
+        silver_df = self.read_batch_from_silver(predicate)
+
+        # Apply same feature computation
+        features_df = self.compute_features_for_interval(silver_df, "1 minute", "30 seconds")
+
+        # Write to same Gold Delta table
+        (
+            features_df.write
+            .format("delta")
+            .mode(output_mode)
+            .partitionBy("symbol")
+            .save(self.output_path)
+        )
+
+        logger.info("batch_feature_computation_complete", output=self.output_path)
 
 
 # =============================================================================

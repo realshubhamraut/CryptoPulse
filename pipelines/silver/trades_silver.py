@@ -44,10 +44,10 @@ class SilverTradesPipeline:
     ):
         self.spark = spark or self._create_spark_session()
         self.checkpoint_location = (
-            checkpoint_location or f"{settings.storage.delta_lake_path}/checkpoints/silver_trades"
+            checkpoint_location or f"{settings.storage.adls_delta_path}/checkpoints/silver_trades"
         )
-        self.bronze_path = bronze_path or f"{settings.storage.delta_lake_path}/bronze/trades"
-        self.output_path = output_path or f"{settings.storage.delta_lake_path}/silver/trades"
+        self.bronze_path = bronze_path or f"{settings.storage.adls_delta_path}/bronze/trades"
+        self.output_path = output_path or f"{settings.storage.adls_delta_path}/silver/trades"
     
     def _create_spark_session(self) -> SparkSession:
         """Create Spark session with Delta Lake support."""
@@ -144,7 +144,7 @@ class SilverTradesPipeline:
         )
     
     def write_to_delta(self, df: DataFrame):
-        """Write streaming DataFrame to Silver Delta table."""
+        """Write streaming DataFrame to Silver Delta table (append mode)."""
         return (
             df.writeStream
             .format("delta")
@@ -155,7 +155,56 @@ class SilverTradesPipeline:
             .trigger(processingTime="15 seconds")
             .start(self.output_path)
         )
-    
+
+    def write_with_merge(self, new_data_df: DataFrame) -> None:
+        """
+        ACID-compliant MERGE/UPSERT for batch writes.
+
+        Uses DeltaTable.merge() to:
+        - INSERT new trades that don't exist
+        - UPDATE existing trades if re-ingested with newer data
+
+        This demonstrates Delta Lake's ACID transaction guarantees:
+        the entire merge is atomic — either all rows succeed or none do.
+
+        Resume claim: "ACID guarantees"
+        """
+        from delta.tables import DeltaTable
+
+        if DeltaTable.isDeltaTable(self.spark, self.output_path):
+            target = DeltaTable.forPath(self.spark, self.output_path)
+
+            (
+                target.alias("target")
+                .merge(
+                    new_data_df.alias("source"),
+                    "target.symbol = source.symbol AND target.trade_id = source.trade_id",
+                )
+                # Update if the incoming record is newer
+                .whenMatchedUpdateAll(
+                    condition="source.ingested_at > target.ingested_at"
+                )
+                # Insert if trade doesn't exist
+                .whenNotMatchedInsertAll()
+                .execute()
+            )
+
+            logger.info(
+                "silver_merge_complete",
+                target=self.output_path,
+                merge_keys=["symbol", "trade_id"],
+            )
+        else:
+            # First write — create the Delta table
+            (
+                new_data_df.write
+                .format("delta")
+                .mode("overwrite")
+                .partitionBy("trade_date", "symbol")
+                .save(self.output_path)
+            )
+            logger.info("silver_table_created", path=self.output_path)
+
     def run(self):
         """Run the streaming pipeline."""
         logger.info(
@@ -171,6 +220,34 @@ class SilverTradesPipeline:
         logger.info("silver_trades_pipeline_started", query_id=str(query.id))
         
         return query
+
+    def run_batch(self) -> None:
+        """
+        Run batch reprocessing with ACID MERGE.
+
+        Reads the full Bronze table (batch), applies Silver
+        transformations, and uses MERGE to deduplicate against
+        existing Silver data.
+
+        Resume claim: "unified batch/stream processing" —
+        this method processes the same data as run() but in batch mode.
+        """
+        logger.info("starting_silver_batch_reprocessing")
+
+        # Read Bronze as batch (not streaming)
+        bronze_df = (
+            self.spark.read
+            .format("delta")
+            .load(self.bronze_path)
+        )
+
+        # Apply same transformations
+        silver_df = self.transform(bronze_df)
+
+        # ACID MERGE instead of append
+        self.write_with_merge(silver_df)
+
+        logger.info("silver_batch_reprocessing_complete")
     
     def run_and_await(self) -> None:
         """Run pipeline and wait for termination."""
@@ -181,3 +258,4 @@ class SilverTradesPipeline:
 if __name__ == "__main__":
     pipeline = SilverTradesPipeline()
     pipeline.run_and_await()
+

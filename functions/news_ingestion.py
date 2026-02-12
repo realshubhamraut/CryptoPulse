@@ -167,15 +167,86 @@ async def ingest_news(
 
 
 # =============================================================================
-# Azure Function / CLI Entry Point
+# Azure Function Entry Point
 # =============================================================================
 
-def main() -> None:
+try:
+    import azure.functions as func
+except ImportError:
+    func = None  # type: ignore[assignment]
+
+
+def main(timer: "func.TimerRequest | None" = None) -> None:
     """
-    Entry point for Azure Functions timer trigger or CLI.
+    Azure Functions timer trigger entry point.
+
+    When deployed as an Azure Function, the function host invokes
+    this with a TimerRequest. For local testing, call with timer=None.
+
+    On Azure, publishes to Event Hubs via AzureEventHubPublisher.
+    Locally, publishes to Kafka via NewsEventPublisher.
+
+    Args:
+        timer: Azure Functions TimerRequest (injected by runtime)
     """
-    result = asyncio.run(ingest_news())
-    print(f"News ingestion complete: {result}")
+    if timer and func:
+        if timer.past_due:
+            logger.warning("timer_past_due", function="news_ingestion")
+
+    # Determine backend: Event Hubs (Azure) or Kafka (local)
+    use_event_hubs = bool(settings.azure_eventhub.connection_string)
+
+    if use_event_hubs:
+        result = asyncio.run(_ingest_to_event_hubs())
+    else:
+        result = asyncio.run(ingest_news())
+
+    logger.info("news_function_complete", **result)
+
+
+async def _ingest_to_event_hubs() -> dict[str, Any]:
+    """
+    Ingest news and publish to Azure Event Hubs.
+
+    Uses the AzureEventHubPublisher for cloud deployment where
+    Event Hubs replaces Kafka as the message broker.
+    """
+    from cryptopulse.ingestion.kafka_producer import AzureEventHubPublisher
+
+    start_time = time.monotonic()
+    dedup = NewsDeduplicator()
+    since = datetime.now(timezone.utc) - timedelta(minutes=5)
+
+    # Crawl articles
+    try:
+        from cryptopulse.ingestion.news_crawler import create_default_orchestrator
+        orchestrator = create_default_orchestrator()
+    except ImportError as e:
+        logger.error("crawler_import_error", error=str(e))
+        return {"error": str(e), "articles_crawled": 0}
+
+    articles = await orchestrator.crawl_all(since=since)
+    unique = [a for a in articles if dedup.is_new(a.content_hash)]
+
+    # Publish to Event Hub
+    publisher = AzureEventHubPublisher(
+        eventhub_name=settings.azure_eventhub.news_name,
+    )
+    await publisher.connect()
+
+    if unique:
+        await publisher.publish_batch([a.model_dump() for a in unique])
+
+    await publisher.close()
+
+    return {
+        "backend": "azure_event_hubs",
+        "total_crawled": len(articles),
+        "total_unique": len(unique),
+        "total_published": len(unique),
+        "elapsed_seconds": round(time.monotonic() - start_time, 3),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 if __name__ == "__main__":

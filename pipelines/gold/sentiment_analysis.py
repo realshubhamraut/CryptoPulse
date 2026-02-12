@@ -139,10 +139,10 @@ class SentimentAnalysisPipeline:
     ):
         self.spark = spark or self._create_spark_session()
         self.checkpoint_location = (
-            checkpoint_location or f"{settings.storage.delta_lake_path}/checkpoints/gold_sentiment"
+            checkpoint_location or f"{settings.storage.adls_delta_path}/checkpoints/gold_sentiment"
         )
-        self.silver_path = silver_path or f"{settings.storage.delta_lake_path}/silver/news"
-        self.output_path = output_path or f"{settings.storage.delta_lake_path}/gold/sentiment"
+        self.silver_path = silver_path or f"{settings.storage.adls_delta_path}/silver/news"
+        self.output_path = output_path or f"{settings.storage.adls_delta_path}/gold/sentiment"
         
         # Register sentiment UDF
         self._register_sentiment_udf()

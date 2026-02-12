@@ -66,27 +66,22 @@ class BronzeTradesPipeline:
     ):
         self.spark = spark or self._create_spark_session()
         self.checkpoint_location = (
-            checkpoint_location or f"{settings.storage.delta_lake_path}/checkpoints/bronze_trades"
+            checkpoint_location or f"{settings.storage.adls_delta_path}/checkpoints/bronze_trades"
         )
-        self.output_path = output_path or f"{settings.storage.delta_lake_path}/bronze/trades"
+        self.output_path = output_path or f"{settings.storage.adls_delta_path}/bronze/trades"
     
     def _create_spark_session(self) -> SparkSession:
-        """Create Spark session with Delta Lake and Kafka support."""
-        return (
-            SparkSession.builder
-            .appName("CryptoPulse-Bronze-Trades")
-            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-            .config(
-                "spark.sql.catalog.spark_catalog",
-                "org.apache.spark.sql.delta.catalog.DeltaCatalog"
-            )
-            .config("spark.sql.streaming.schemaInference", "true")
-            .config("spark.sql.adaptive.enabled", "true")
-            # Kafka configs
-            .config("spark.jars.packages", 
-                    "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,"
-                    "io.delta:delta-spark_2.12:3.0.0")
-            .getOrCreate()
+        """Create Spark session with Delta Lake, Kafka, and ADLS Gen2 support."""
+        from pipelines.utils.spark_session import create_spark_session
+
+        return create_spark_session(
+            app_name="CryptoPulse-Bronze-Trades",
+            extra_config={
+                "spark.jars.packages": (
+                    "io.delta:delta-spark_2.12:3.1.0,"
+                    "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0"
+                ),
+            },
         )
     
     def read_from_kafka(self) -> DataFrame:

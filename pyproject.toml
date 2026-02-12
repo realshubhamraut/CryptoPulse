@@ -50,6 +50,10 @@ dependencies = [
     "langchain-core>=0.3.0",
     "langchain-groq>=0.2.0",
 
+    # Frontend Dashboard
+    "flask>=3.0.0",
+    "flask-cors>=4.0.0",
+
     # Utilities
     "redis>=5.0.0",
     "xxhash>=3.4.0",

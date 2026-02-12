@@ -61,9 +61,9 @@ class BronzeNewsPipeline:
     ):
         self.spark = spark or self._create_spark_session()
         self.checkpoint_location = (
-            checkpoint_location or f"{settings.storage.delta_lake_path}/checkpoints/bronze_news"
+            checkpoint_location or f"{settings.storage.adls_delta_path}/checkpoints/bronze_news"
         )
-        self.output_path = output_path or f"{settings.storage.delta_lake_path}/bronze/news"
+        self.output_path = output_path or f"{settings.storage.adls_delta_path}/bronze/news"
     
     def _create_spark_session(self) -> SparkSession:
         """Create Spark session with Delta Lake and Kafka support."""

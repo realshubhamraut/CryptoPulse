@@ -25,7 +25,7 @@ RUN pip install --no-cache-dir --prefix=/install -e "." 2>/dev/null || \
     pip install --no-cache-dir --prefix=/install \
     pydantic pydantic-settings python-dotenv structlog httpx aiohttp \
     fastapi "uvicorn[standard]" python-multipart \
-    langgraph langchain-core langchain-google-genai \
+    langgraph langchain-core langchain-groq \
     redis tenacity numpy pandas scikit-learn
 
 

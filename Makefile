@@ -2,7 +2,8 @@
 # CryptoPulse - Development Makefile
 # =============================================================================
 
-.PHONY: help install dev test lint format docker-up docker-down deploy clean
+.PHONY: help install dev test lint format docker-up docker-down deploy clean \
+       deploy-azure deploy-images deploy-functions deploy-apps deploy-secrets deploy-verify
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -54,6 +55,30 @@ deploy-infra: ## Provision Azure infrastructure
 
 deploy-dbx: ## Configure Databricks workspace
 	bash infrastructure/databricks_setup.sh
+
+# ── Azure Full Deployment ───────────────────────────────────────────────────
+deploy-azure: deploy-infra deploy-images deploy-functions deploy-apps deploy-secrets deploy-verify ## Full Azure deployment (all phases)
+
+deploy-images: ## Build & push Docker images to ACR
+	bash infrastructure/deploy_containers.sh
+
+deploy-functions: ## Deploy Azure Functions (ingestion)
+	bash infrastructure/deploy_functions.sh
+
+deploy-apps: ## Deploy API + Frontend to Container Apps
+	bash infrastructure/deploy_apps.sh
+
+deploy-secrets: ## Configure Key Vault secrets & generate .env.azure
+	bash infrastructure/configure_secrets.sh
+
+deploy-verify: ## Verify all deployed Azure services
+	bash infrastructure/verify_deployment.sh
+
+deploy-teardown: ## ⚠️  Delete ALL Azure resources (irreversible)
+	@echo "⚠️  This will delete ALL CryptoPulse Azure resources!"
+	@read -p "Type 'yes' to confirm: " CONFIRM && [ "$$CONFIRM" = "yes" ] || exit 1
+	az group delete --name "rg-cryptopulse-$${CRYPTOPULSE_ENV:-dev}" --yes --no-wait
+	@echo "✓ Resource group deletion initiated"
 
 # ── Ingestion (local testing) ───────────────────────────────────────────────
 ingest-trades: ## Run Binance trade ingestion locally

@@ -1,0 +1,45 @@
+# =============================================================================
+# CryptoPulse Frontend - Flask Dashboard Dockerfile
+# =============================================================================
+# Lightweight image for the Flask dashboard
+#
+# Usage:
+#   docker build -f Dockerfile.frontend -t cryptopulse-frontend .
+#   docker run -p 5050:5050 --env-file .env cryptopulse-frontend
+# =============================================================================
+
+FROM python:3.11-slim
+
+LABEL maintainer="CryptoPulse Team"
+LABEL description="CryptoPulse Frontend - Real-time crypto dashboard"
+
+WORKDIR /app
+
+# Install Python dependencies
+RUN pip install --no-cache-dir \
+    flask>=3.0.0 \
+    flask-cors>=4.0.0 \
+    httpx>=0.25.0 \
+    python-dotenv>=1.0.0
+
+# Copy frontend application
+COPY frontend/ ./frontend/
+
+# Create non-root user
+RUN groupadd -r cryptopulse && \
+    useradd -r -g cryptopulse -d /app -s /sbin/nologin cryptopulse && \
+    chown -R cryptopulse:cryptopulse /app
+
+USER cryptopulse
+
+# Environment
+ENV PYTHONPATH=/app \
+    PYTHONUNBUFFERED=1 \
+    API_URL=http://api:8000
+
+EXPOSE 5050
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD python -c "import httpx; r = httpx.get('http://localhost:5050/'); r.raise_for_status()" || exit 1
+
+CMD ["python", "frontend/app.py"]

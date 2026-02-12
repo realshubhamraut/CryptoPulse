@@ -75,7 +75,7 @@ class AzureEventHubConfig(BaseSettings):
 
 
 class StorageConfig(BaseSettings):
-    """Storage configuration for Delta Lake."""
+    """Storage configuration for Delta Lake and ADLS Gen2."""
 
     model_config = SettingsConfigDict(env_prefix="")
 
@@ -88,6 +88,9 @@ class StorageConfig(BaseSettings):
     azure_storage_account_name: str = Field(
         default="", alias="AZURE_STORAGE_ACCOUNT_NAME"
     )
+    azure_storage_account_key: str = Field(
+        default="", alias="AZURE_STORAGE_ACCOUNT_KEY"
+    )
     azure_storage_container_name: str = Field(
         default="cryptopulse-delta", alias="AZURE_STORAGE_CONTAINER_NAME"
     )
@@ -99,8 +102,42 @@ class StorageConfig(BaseSettings):
     delta_lake_path: str = Field(
         default="/data/delta",
         alias="DELTA_LAKE_PATH",
-        description="Base path for Delta tables",
+        description="Base path for Delta tables (overridden by ADLS when configured)",
     )
+
+    @property
+    def is_azure(self) -> bool:
+        """Check if Azure ADLS Gen2 storage is configured."""
+        return bool(self.azure_storage_account_name)
+
+    @property
+    def adls_delta_path(self) -> str:
+        """
+        Resolve Delta Lake path to ADLS Gen2 abfss:// URL.
+
+        When Azure credentials are present, returns:
+            abfss://{container}@{account}.dfs.core.windows.net/delta
+
+        Otherwise falls back to local delta_lake_path.
+
+        Resume claim: "Delta Lake on ADLS Gen2"
+        """
+        if self.is_azure:
+            return (
+                f"abfss://{self.azure_storage_container_name}"
+                f"@{self.azure_storage_account_name}.dfs.core.windows.net/delta"
+            )
+        return self.delta_lake_path
+
+    @property
+    def adls_model_path(self) -> str:
+        """Resolve model artifact storage path for ADLS Gen2."""
+        if self.is_azure:
+            return (
+                f"abfss://{self.azure_storage_container_name}"
+                f"@{self.azure_storage_account_name}.dfs.core.windows.net/models"
+            )
+        return f"{self.delta_lake_path}/models"
 
 
 class SparkConfig(BaseSettings):

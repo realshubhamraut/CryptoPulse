@@ -252,18 +252,94 @@ async def ingest_trades(
 
 
 # =============================================================================
-# Azure Function / CLI Entry Point
+# Azure Function Entry Point
 # =============================================================================
 
-def main() -> None:
-    """
-    Entry point for Azure Functions timer trigger or CLI.
+try:
+    import azure.functions as func
+except ImportError:
+    func = None  # type: ignore[assignment]
 
-    When deployed as an Azure Function, this is invoked by the
-    function host. For local testing, run directly.
+
+def main(timer: "func.TimerRequest | None" = None) -> None:
     """
-    result = asyncio.run(ingest_trades())
-    print(f"Ingestion complete: {result}")
+    Azure Functions timer trigger entry point.
+
+    When deployed as an Azure Function, the function host invokes
+    this with a TimerRequest. For local testing, call with timer=None.
+
+    On Azure, publishes to Event Hubs via AzureEventHubPublisher.
+    Locally, publishes to Kafka via TradeEventPublisher.
+
+    Args:
+        timer: Azure Functions TimerRequest (injected by runtime)
+    """
+    if timer and func:
+        if timer.past_due:
+            logger.warning("timer_past_due", function="binance_ingestion")
+
+    # Determine if we should publish to Event Hubs (Azure) or Kafka (local)
+    use_event_hubs = bool(settings.azure_eventhub.connection_string)
+
+    if use_event_hubs:
+        result = asyncio.run(_ingest_to_event_hubs())
+    else:
+        result = asyncio.run(ingest_trades())
+
+    logger.info("binance_function_complete", **result)
+
+
+async def _ingest_to_event_hubs() -> dict[str, Any]:
+    """
+    Ingest trades and publish directly to Azure Event Hubs.
+
+    Uses the AzureEventHubPublisher for cloud deployment where
+    Kafka is not available — Event Hubs replaces Kafka as the
+    message broker.
+    """
+    from cryptopulse.ingestion.kafka_producer import AzureEventHubPublisher
+
+    pairs = DEFAULT_PAIRS
+    dedup = TradeDeduplicator()
+    start_time = time.monotonic()
+
+    publisher = AzureEventHubPublisher(
+        eventhub_name=settings.azure_eventhub.trades_name,
+    )
+    await publisher.connect()
+
+    total_fetched = 0
+    total_valid = 0
+    all_events: list[dict] = []
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        for symbol in pairs:
+            raw_trades = await fetch_recent_trades(symbol, limit=100, client=client)
+            total_fetched += len(raw_trades)
+
+            for raw in raw_trades:
+                if not dedup.is_new(raw.get("id", 0)):
+                    continue
+                event = validate_and_transform(raw, symbol)
+                if event:
+                    all_events.append(event)
+                    total_valid += 1
+
+    # Publish batch to Event Hub
+    if all_events:
+        await publisher.publish_batch(all_events)
+
+    await publisher.close()
+
+    return {
+        "backend": "azure_event_hubs",
+        "pairs_processed": len(pairs),
+        "total_fetched": total_fetched,
+        "total_valid": total_valid,
+        "total_published": len(all_events),
+        "elapsed_seconds": round(time.monotonic() - start_time, 3),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 if __name__ == "__main__":

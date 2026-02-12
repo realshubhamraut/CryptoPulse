@@ -9,6 +9,13 @@
             "schedule": "*/30 * * * * *",
             "runOnStartup": false,
             "useMonitor": true
+        },
+        {
+            "name": "outputEvent",
+            "type": "eventHub",
+            "direction": "out",
+            "eventHubName": "trades",
+            "connection": "AZURE_EVENTHUB_CONNECTION_STRING"
         }
     ]
 }
