@@ -1,13 +1,13 @@
 #!/bin/bash
 # =============================================================================
-# CryptoPulse - Deploy Azure Functions
+# CryptoPulse - Deploy Azure Functions (via zip deploy)
 # =============================================================================
 # Deploys the timer-triggered ingestion functions (Binance + News)
-# to the Azure Function App.
+# using az CLI zip deployment (no func CLI needed).
 #
 # Prerequisites:
 #   - azure_setup.sh completed (Function App created)
-#   - Azure Functions Core Tools: brew install azure-functions-core-tools@4
+#   - Azure CLI installed
 #
 # Usage:
 #   bash infrastructure/deploy_functions.sh
@@ -28,13 +28,6 @@ echo "╚═══════════════════════�
 echo ""
 
 # ─── Prerequisites ───────────────────────────────────────────────────────────
-if ! command -v func &> /dev/null; then
-    echo "✗ Azure Functions Core Tools not found."
-    echo "  Install: brew install azure-functions-core-tools@4"
-    exit 1
-fi
-echo "✓ Azure Functions Core Tools found"
-
 # Verify Function App exists
 FUNC_STATUS=$(az functionapp show --name "$FUNCAPP_NAME" --resource-group "$RG_NAME" \
     --query state -o tsv 2>/dev/null || echo "")
@@ -44,23 +37,24 @@ if [ -z "$FUNC_STATUS" ]; then
 fi
 echo "✓ Function App: ${FUNCAPP_NAME} (state: ${FUNC_STATUS})"
 
-# ─── Prepare Function Project ────────────────────────────────────────────────
+# ─── Build Deployment Package ────────────────────────────────────────────────
 echo ""
-echo "─── [1/3] Preparing function project ───"
+echo "─── [1/3] Building deployment package ───"
 
-# Create a temporary deployment directory with the correct Azure Functions structure
 DEPLOY_DIR=$(mktemp -d)
 trap "rm -rf $DEPLOY_DIR" EXIT
 
-# Copy function files
+# Copy function host config
 cp "${PROJECT_ROOT}/functions/host.json" "$DEPLOY_DIR/"
+
+# Copy function trigger configs
 cp -r "${PROJECT_ROOT}/functions/binance_trigger" "$DEPLOY_DIR/"
 cp -r "${PROJECT_ROOT}/functions/news_trigger" "$DEPLOY_DIR/"
 
-# Copy function code
+# Copy function handler code
 cp "${PROJECT_ROOT}/functions/binance_ingestion.py" "$DEPLOY_DIR/"
 cp "${PROJECT_ROOT}/functions/news_ingestion.py" "$DEPLOY_DIR/"
-cp "${PROJECT_ROOT}/functions/__init__.py" "$DEPLOY_DIR/functions_init.py"
+cp "${PROJECT_ROOT}/functions/__init__.py" "$DEPLOY_DIR/"
 
 # Copy requirements
 cp "${PROJECT_ROOT}/functions/requirements.txt" "$DEPLOY_DIR/"
@@ -68,38 +62,46 @@ cp "${PROJECT_ROOT}/functions/requirements.txt" "$DEPLOY_DIR/"
 # Copy required library modules
 cp -r "${PROJECT_ROOT}/cryptopulse" "$DEPLOY_DIR/"
 
-echo "  ✓ Function project prepared in ${DEPLOY_DIR}"
+# Create zip package
+ZIP_FILE="${DEPLOY_DIR}/deploy.zip"
+cd "$DEPLOY_DIR"
+zip -r "$ZIP_FILE" . -x "deploy.zip" > /dev/null
+echo "  ✓ Package created ($(du -h "$ZIP_FILE" | cut -f1))"
 
 # ─── Configure App Settings ──────────────────────────────────────────────────
 echo ""
 echo "─── [2/3] Updating app settings ───"
 
-# Read .env if available and set any GROQ/API keys
+# Read .env if available and set any API keys
 if [ -f "${PROJECT_ROOT}/.env" ]; then
-    GROQ_KEY=$(grep "^GROQ_API_KEY=" "${PROJECT_ROOT}/.env" 2>/dev/null | cut -d'=' -f2 || echo "")
-    NEWS_API_KEY=$(grep "^CRYPTOCOMPARE_API_KEY=" "${PROJECT_ROOT}/.env" 2>/dev/null | cut -d'=' -f2 || echo "")
-
     SETTINGS=""
-    [ -n "$GROQ_KEY" ] && SETTINGS="GROQ_API_KEY=${GROQ_KEY}"
-    [ -n "$NEWS_API_KEY" ] && SETTINGS="${SETTINGS} CRYPTOCOMPARE_API_KEY=${NEWS_API_KEY}"
+    for KEY in GROQ_API_KEY CRYPTOCOMPARE_API_KEY BINANCE_API_KEY NEWS_API_KEY; do
+        VALUE=$(grep "^${KEY}=" "${PROJECT_ROOT}/.env" 2>/dev/null | cut -d'=' -f2 || echo "")
+        if [ -n "$VALUE" ]; then
+            SETTINGS="${SETTINGS} ${KEY}=${VALUE}"
+        fi
+    done
 
     if [ -n "$SETTINGS" ]; then
         az functionapp config appsettings set \
             --name "$FUNCAPP_NAME" \
             --resource-group "$RG_NAME" \
             --settings $SETTINGS \
-            --output none
+            --output none 2>/dev/null || true
         echo "  ✓ API keys configured from .env"
     fi
 fi
 echo "  ✓ App settings verified"
 
-# ─── Deploy ──────────────────────────────────────────────────────────────────
+# ─── Deploy via Zip ──────────────────────────────────────────────────────────
 echo ""
-echo "─── [3/3] Deploying functions ───"
+echo "─── [3/3] Deploying via zip deploy ───"
 
-cd "$DEPLOY_DIR"
-func azure functionapp publish "$FUNCAPP_NAME" --python
+az functionapp deployment source config-zip \
+    --name "$FUNCAPP_NAME" \
+    --resource-group "$RG_NAME" \
+    --src "$ZIP_FILE" \
+    --output none
 
 echo ""
 echo "╔══════════════════════════════════════════════════╗"
@@ -114,7 +116,7 @@ echo "  • News Ingestion (timer: every 5 min)"
 echo "    URL: https://${FUNCAPP_NAME}.azurewebsites.net/api/news_trigger"
 echo ""
 echo "View logs:"
-echo "  func azure functionapp logstream ${FUNCAPP_NAME}"
+echo "  az functionapp log tail --name ${FUNCAPP_NAME} --resource-group ${RG_NAME}"
 echo ""
 echo "Next: bash infrastructure/deploy_apps.sh"
 echo ""
